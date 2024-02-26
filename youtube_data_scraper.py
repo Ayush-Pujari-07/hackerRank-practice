@@ -148,6 +148,7 @@ if __name__ == '__main__':
     parser.add_argument("-p", "--playlist", type=str, help="Playlist URL")
     parser.add_argument("-y", "--youtube", type=str, help="Youtube URL")
     parser.add_argument("-o", "--output", type=str, help="Output file name")
+    parser.add_argument("-idir", "--image_dir", type=str, help="Image directory")
     args = parser.parse_args()
 
     check_dependencies()
@@ -166,17 +167,21 @@ if __name__ == '__main__':
 
     save_metadata_to_json(file_name=args.output, metadata=video_metadata)
 
-    if not os.path.exists("./data_image/"):
-        os.makedirs("./data_image/")
+    if not os.path.exists(args.image_dir):
+        os.makedirs(args.image_dir)
 
     folder_path = "./output"
     if os.listdir(folder_path):
         with concurrent.futures.ThreadPoolExecutor() as executor:
             futures = [executor.submit(VideoToImageConverter, video_filepath=os.path.join(
-                folder_path, file), out_dir="./data_image/", folder_name=file, capture_rate=1, save_format=".jpg") for file in os.listdir(folder_path)]
+                folder_path, file), out_dir=args.image_dir, folder_name=file, capture_rate=1, save_format=".jpg") for file in os.listdir(folder_path)]
             for future in concurrent.futures.as_completed(futures):
                 try:
                     result = future.result()
                     logging.info(f"File processed: {result}")
                 except Exception as e:
                     logging.error(f"Error processing file: {e}")
+
+
+
+#  python youtube_data_scraper.py --playlist 'https://youtube.com/playlist?list=PLJOFJ3Ok_idupqUbYt2fov6bnCdQpQQtA&si=C5_055Clinc-us46' -o nngroup -idir nnGroup
