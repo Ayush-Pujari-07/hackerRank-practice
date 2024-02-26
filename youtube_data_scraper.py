@@ -1,14 +1,25 @@
+import os
 import json
+import logging
 import requests
 import argparse
 import concurrent.futures
 
-from pathlib import Path
-from pytube import Playlist, Search
+from pytube import Playlist, Search, YouTube
 from youtube_transcript_api import YouTubeTranscriptApi
+from video_to_image_converter import VideoToImageConverter
+
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="[%(asctime)s - %(levelname)s] - %(filename)s - %(message)s"
+)
 
 
 def check_dependencies():
+    """
+    Check if all the dependencies are installed
+    """
     try:
         import pytube
         import youtube_transcript_api
@@ -19,32 +30,42 @@ def check_dependencies():
         exit()
 
 
-def get_transcript(video_id: str) -> str:
+def get_youtube_transcript(video_id: str) -> str:
+    """
+    Get the transcript of the video
+    """
     try:
         transcript_list = YouTubeTranscriptApi.get_transcript(video_id)
         return " ".join([transcript['text']for transcript in transcript_list])
     except Exception as e:
-        print(f"Error: {e}")
+        logging.error(f"Error: {e}")
 
 
 def download_video(data: dict):
+    """
+    Download the video
+    """
     try:
-        file_name = f"{data['title']}_{data['video_id']}.mp4"
-        print(f"File name: {file_name}")
-        output_folder = Path("./output")
+        logging.info(data)
+        file_name = f"{data['title'].replace(' ', '_')}_{data['video_id']}.mp4"
+
+        logging.info(f"file_name: {file_name}")
+        output_folder = "./output"
 
         # Check if the output folder exists, create it if not
-        if not output_folder.exists():
-            output_folder.mkdir(parents=True, exist_ok=True)
+        if not os.path.exists(output_folder):
+            os.makedirs(output_folder, exist_ok=True)
 
-        full_path = output_folder / file_name
-        print(f"Full path: {full_path}")
-        
-        # if full_path.exists():
-        #     print(f"Skipping download for {full_path}. File already exists.")
-        #     return
+        full_path = os.path.join(output_folder, file_name)
 
-        print(f"Downloading file: {file_name}")
+        logging.info(f"full_path: {full_path}")
+        if os.path.exists(full_path):
+            logging.info(
+                f"Skipping download for {full_path}. File already exists.")
+            return
+
+        logging.info(f"Downloading file: {file_name}")
+        logging.info(f"URL: {data['url'][0]}")
 
         r = requests.get(data['url'][0], stream=True)
         r.raise_for_status()
@@ -54,34 +75,48 @@ def download_video(data: dict):
                 if chunk:
                     f.write(chunk)
 
-        print(f"{file_name} downloaded!\n")
+        logging.info(f"{file_name} downloaded!\n")
 
     except requests.exceptions.RequestException as req_ex:
-        print(f"Error in requests: {req_ex}")
+        logging.error(f"Error in requests: {req_ex}")
     except Exception as e:
-        print(f"Error: {e}")
+        logging.error(f"Error: {e}")
 
 
-def get_video_metadata(search_data=None, playlist_data=None) -> list:
+def get_video_metadata(search_data=None, playlist_data=None, youtube_data=None) -> list:
+    """
+    Get the metadata of the video
+    """
     metadata = []
     try:
         data_source = search_data if search_data else playlist_data
+
+        if youtube_data:
+            video_metadata = {
+                'title': youtube_data.title,
+                'video_id': youtube_data.video_id,
+                'url': [_['url'] for _ in youtube_data.streaming_data['formats'] if _['qualityLabel'] == "360p"],
+                'transcript': get_youtube_transcript(youtube_data.video_id)
+            }
+            return [video_metadata]
 
         with concurrent.futures.ThreadPoolExecutor() as executor:
             futures = []
 
             for index, result in enumerate(data_source.results if search_data else data_source.videos):
-                print(
+                logging.info(
                     f"Extracting Metadata for video {result.title} - {index + 1} of {len(data_source.results if search_data else data_source.videos)}")
                 video_metadata = {
                     'title': result.title,
                     'video_id': result.video_id,
+                    # quality can be increased or decreased
                     'url': [_['url'] for _ in result.streaming_data['formats'] if _['qualityLabel'] == "360p"],
-                    'transcript': get_transcript(result.video_id)
+                    'transcript': get_youtube_transcript(result.video_id)
                 }
                 metadata.append(video_metadata)
+                # logging.info(f"Metadata: {video_metadata}")
                 futures.append(executor.submit(download_video, video_metadata))
-            
+
             concurrent.futures.wait(futures)
             # Wait for all downloads to complete
             for future in futures:
@@ -90,15 +125,20 @@ def get_video_metadata(search_data=None, playlist_data=None) -> list:
         return metadata
 
     except Exception as e:
-        print(f"Error: {e}")
+        logging.error(f"Error: {e}")
         return []
 
 
-def save_metadata_to_json(metadata: list):
+def save_metadata_to_json(file_name: str = "metadata", metadata: list = []):
+    """
+    Save the metadata to a json file
+    """
     # convert list of dict to json
     json_metadata = json.dumps(metadata, indent=4)
+    if not os.path.exists("./metadata"):
+        os.makedirs("./metadata")
     # continue with saving json_metadata to file
-    with open('metadata.json', 'w') as f:
+    with open(f"./metadata/{file_name}.json", 'w') as f:
         f.write(json_metadata)
 
 
@@ -106,6 +146,8 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("-s", "--search", type=str, help="Search term")
     parser.add_argument("-p", "--playlist", type=str, help="Playlist URL")
+    parser.add_argument("-y", "--youtube", type=str, help="Youtube URL")
+    parser.add_argument("-o", "--output", type=str, help="Output file name")
     args = parser.parse_args()
 
     check_dependencies()
@@ -118,5 +160,23 @@ if __name__ == '__main__':
         playlist = Playlist(args.playlist)
         video_metadata = get_video_metadata(playlist_data=playlist)
 
-    save_metadata_to_json(video_metadata)
-    
+    if args.youtube:
+        youtube = YouTube(args.youtube)
+        video_metadata = get_video_metadata(youtube_data=youtube)
+
+    save_metadata_to_json(file_name=args.output, metadata=video_metadata)
+
+    if not os.path.exists("./data_image/"):
+        os.makedirs("./data_image/")
+
+    folder_path = "./output"
+    if os.listdir(folder_path):
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            futures = [executor.submit(VideoToImageConverter, video_filepath=os.path.join(
+                folder_path, file), out_dir="./data_image/", folder_name=file, capture_rate=1, save_format=".jpg") for file in os.listdir(folder_path)]
+            for future in concurrent.futures.as_completed(futures):
+                try:
+                    result = future.result()
+                    logging.info(f"File processed: {result}")
+                except Exception as e:
+                    logging.error(f"Error processing file: {e}")
