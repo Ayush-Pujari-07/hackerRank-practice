@@ -65,7 +65,7 @@ class VideoToImageConverter:
                 sys.exit("\033[1;31m Capture Frame Capture Rate cannot be <= 0 \033[00m")
 
         # Folder time stamp
-        folder_name = f"Image_{folder_name.replace(' ', '_')}" + str(dt.now().strftime('%Y-%m-%d %H:%M:%S'))
+        folder_name = f"{folder_name.replace(' ', '_')}"
 
         # If output directory is not specified
         if self.out_dir is None:
