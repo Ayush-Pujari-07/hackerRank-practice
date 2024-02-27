@@ -1,7 +1,6 @@
 import os
 import sys
 import imageio
-import logging
 import moviepy.editor
 
 from tqdm import tqdm

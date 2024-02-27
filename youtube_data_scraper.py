@@ -9,7 +9,7 @@ from pytube import Playlist, Search, YouTube
 from youtube_transcript_api import YouTubeTranscriptApi
 from video_to_image_converter import VideoToImageConverter
 
-
+# console log
 logging.basicConfig(
     level=logging.INFO,
     format="[%(asctime)s - %(levelname)s] - %(filename)s - %(message)s"
@@ -98,6 +98,7 @@ def get_video_metadata(search_data=None, playlist_data=None, youtube_data=None) 
                 'url': [_['url'] for _ in youtube_data.streaming_data['formats'] if _['qualityLabel'] == "360p"],
                 'transcript': get_youtube_transcript(youtube_data.video_id)
             }
+            download_video(video_metadata)
             return [video_metadata]
 
         with concurrent.futures.ThreadPoolExecutor() as executor:
@@ -147,8 +148,9 @@ if __name__ == '__main__':
     parser.add_argument("-s", "--search", type=str, help="Search term")
     parser.add_argument("-p", "--playlist", type=str, help="Playlist URL")
     parser.add_argument("-y", "--youtube", type=str, help="Youtube URL")
-    parser.add_argument("-o", "--output", type=str, help="Output file name")
-    parser.add_argument("-idir", "--image_dir", type=str, help="Image directory")
+    parser.add_argument("-o", "--output", type=str, help="Metadata file name")
+    parser.add_argument("-idir", "--image_dir",
+                        type=str, help="Image directory")
     args = parser.parse_args()
 
     check_dependencies()
@@ -181,7 +183,6 @@ if __name__ == '__main__':
                     logging.info(f"File processed: {result}")
                 except Exception as e:
                     logging.error(f"Error processing file: {e}")
-
 
 
 #  python youtube_data_scraper.py --playlist 'https://youtube.com/playlist?list=PLJOFJ3Ok_idupqUbYt2fov6bnCdQpQQtA&si=C5_055Clinc-us46' -o nngroup -idir nnGroup
