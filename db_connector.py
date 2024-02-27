@@ -1,36 +1,41 @@
 import os
+import json
+import pymongo
 
-from pymongo import MongoClient
-from dotenv import find_dotenv, load_dotenv
-from pymongo.errors import ConfigurationError, NetworkTimeout
+from datetime import datetime
+from pymongo.mongo_client import MongoClient
+from dotenv import load_dotenv, find_dotenv
 
 load_dotenv(find_dotenv())
 
-MONGO_URI = os.getenv("MONGO_URI")
-client = MongoClient(MONGO_URI)
+db = MongoClient(os.environ.get("MONGO_URI"))["youtube_data"]
 
-collection = client["Data_extraction_DB"]["image_data"]
+def insert_images_to_mongo():
+    collection = db["images"]
+    collection.create_index([("video_id", pymongo.DESCENDING)])
 
-def store_image_to_mongodb(image_path, metadata):
-    """
-    Stores an image to the MongoDB collection along with its metadata.
-    """
-    try:
-        with open(image_path, "rb") as image_file:
-            encoded_image = image_file.read()
-        
-        # Creating a document to insert into the collection
-        document = {
-            "video_id": metadata["video_id"],
-            "image": encoded_image,
-        }
-        
-        # Inserting the document into the collection
-        collection.insert_one(document)
-        print(f"Image stored successfully with metadata: {metadata}")
-        
-    except NetworkTimeout as e:
-        print(f"Failed to store image. Error: {e}")
+    image_dir_path = "./Image_dir"
+    if os.path.exists(image_dir_path) and os.listdir(image_dir_path):
+        for folder_name in os.listdir(image_dir_path):
+            folder_path = os.path.join(image_dir_path, folder_name)
+            print(folder_path)
+            if os.path.isdir(folder_path) and os.listdir(folder_path):
+                for image_name in os.listdir(folder_path):
+                    image_path = os.path.join(folder_path, image_name)
+                    with open(image_path, "rb") as image_file:
+                        collection.insert_one({
+                            "video_id": folder_name.split("_")[-1],
+                            "created_at": datetime.now(),
+                            "image_id": open(image_path, "rb").read()
+                        })
+def create_metadata():
+    collection = db["metadata"]
+    collection.create_index([("video_id", pymongo.DESCENDING)])
 
-
-
+    if os.path.exists("metadata"):
+        for file in os.listdir("metadata"):
+            with open(f"metadata/{file}", "r") as f:
+                data = json.load(f)
+                for _ in data:
+                    _['created_at'] = datetime.now()
+                    collection.insert_one(_)

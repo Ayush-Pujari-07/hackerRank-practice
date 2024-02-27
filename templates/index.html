@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YouTube Data Fetcher</title>
+</head>
+<body>
+    <h1>YouTube Data Fetcher</h1>
+    <form action="/fetch-data" method="post">
+        <label for="data_type">Select Data Type:</label>
+        <select id="data_type" name="data_type">
+            <option value="video_link">Single Video Link</option>
+            <option value="keyword_search">Keyword Search</option>
+            <option value="playlist_link">Playlist Link</option>
+        </select><br><br>
+        
+        <input type="text" id="data_input" name="data_input"><br><br>
+        
+        <input type="submit" value="Fetch Data">
+    </form>
+</body>
+</html>
+

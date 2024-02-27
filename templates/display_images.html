@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image Gallery</title>
+    <style>
+        .gallery {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        .gallery img {
+            max-width: 100%;
+            height: auto;
+        }
+        .delete-form {
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Image Gallery</h1>
+    <div class="gallery">
+        {% for image in images %}
+            <div>
+                <img src="data:image/jpeg;base64,{{ image.image_base64 }}" alt="Image" onerror="this.style.display='none'">
+                <form action="/delete-selected-images/" method="post" class="delete-form">
+                    <input type="hidden" name="image_ids" value="{{ image._id }}">
+                    <button type="submit">Delete</button>
+                </form>
+            </div>
+        {% endfor %}
+    </div>
+</body>
+</html>
+

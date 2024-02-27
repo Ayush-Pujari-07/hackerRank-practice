@@ -71,8 +71,6 @@ def download_video(folder_path: str, data: dict):
     try:
         logging.info(data['title'])
         file_name = f"{data['video_file_name']}.mp4"
-
-        logging.info(f"file_name: {file_name}")
         output_folder = folder_path
 
         # Check if the output folder exists, create it if not
